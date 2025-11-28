@@ -1,0 +1,51 @@
+---
+title: "ST558 Project 3 - EDA"
+author: "Jarrett Glass"
+format: html
+---
+
+## Final Project
+
+This will be an exploratory data analysis of the file.
+
+Note that the file to be used, `diabetes_binary_health_indicators_BRFSS2015.csv`, is in the same directory as this. So we will need to read this in, clean it up, etc. We'll be using `Diabetes_binary` as the response variable.
+
+In all, there will be six outputs:
+
+1. This EDA.qmd file where I perform some data analysis.
+
+2. The Modeling.qmd file where I go through the process of fitting and selecting a ‘best’ model based on a training/test split using the tidymodels framework (to be rendered as a nice page via github pages)
+
+3. A .R file where you fit your ‘best’ model as chosen in your modeling file. This file should also define an API for obtaining predictions from that model (among other things, see below).
+
+4. A `Dockerfile` to be used to build the Docker image.
+
+5. A saved `.tar` file that corresponds to the Docker image.
+
+6. A short video of me demonstrating the Docker container and how the API works.
+
+# EDA File
+
+You’ll want to create a quarto document where you go through an exploratory data analysis of our data set.
+
+### Introduction section
+
+You should have an introduction section that
+
++ Briefly describes the data and the variables you have to work with (just discuss the ones you’ll investigate/use in your analysis).
+
++ Describes the purpose of your EDA and ultimate goal of modeling.
+
+### Data
+
+Use a relative path to import the data. You likely want to convert a lot of the variables to factors with meaningful level names, check on missingness, etc.
+
+### Summarizations
+
+You should then produce meaningful summary statistics and plots about the data you are working with (especially as it relates to your response). Although a best practice would be to split the data at hand into a training and testing set first, go ahead and do your EDA on the full data. Be sure to have a narrative about what you are exploring and what the summaries and graphs you created say about the relationships in your data.
+
+```{r}
+#| echo: false
+# This line needed per assignment.
+```
+[Click here for the Modeling page.](Modeling.html)
