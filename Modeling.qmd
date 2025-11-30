@@ -1,0 +1,24 @@
+---
+title: "ST558 Project 3 - Modeling"
+author: "Jarrett Glass"
+format: html
+---
+
+# Modeling File
+
+Start with a basic introduction (feel free to repeat some things from the other file). Then, split the data into a training (70% of the data) and test set (30% of the data). Set a seed to make things reproducible.
+
+The goal is to create models for predicting the Diabetes_binary variable (using tidymodels). We’ll use log-loss as our metric to evaluate the models. For both model types, use log-loss with 5 fold cross-validation to select the best model from that family of models. You should set up your own grid of tuning parameters for each model (even if it is just the number of levels to look at). 
+
+### Classification Tree
+
+You should provide a thorough explanation of what a classification tree model is. Then you should fit a classification tree with varying values for the complexity parameter and choose the best model (based on 5 fold CV on the training set). Include at least 5 predictors in this model.
+
+### Random Forest
+
+You should provide a thorough explanation of what a random forest is and why we might use it (be sure to relate this to a basic classification tree). You should then fit a random forest model with varying values for the `mtry` parameter and choose the best model (based on 5 fold CV on the training set). Include at least 5 predictors in this model.
+
+### Final Model Selection
+
+You should now have two best models (one for each model type above). Compare both models on the test set and declare an overall winner!
+

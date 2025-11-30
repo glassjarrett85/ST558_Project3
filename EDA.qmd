@@ -1,0 +1,77 @@
+---
+title: "ST558 Project 3 - EDA"
+author: "Jarrett Glass"
+format: html
+---
+
+## Introduction
+
+This exploratory analysis will be performed on the `Diabetes Health Indicators` Data set, available from kaggle.com. ([Click here for more information](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/?select=diabetes_binary_health_indicators_BRFSS2015.csv)) This is a data set of survey responses to a questionnaire distributed by the CDC. Including the response variable `Diabetes_binary`, there are 21 additional predictor variables recorded; however, this analysis will review the following variables:
+
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Variable               | Description of Variable                                                                                                          |
++========================+==================================================================================================================================+
+| `Diabetes_binary`      | Whether or not the individual does not have diabetes (0), has pre-diabetes or diabetes (1).                                      |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `HighChol`             | Indicator variable for high cholesterol.                                                                                         |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `BMI`                  | Recorded Body Mass Indices for individuals.                                                                                      |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `HeartDiseaseorAttack` | Indicator variable for whether or not someone has had coronary heart disease (CHD) or myocardial infarction (MI).                |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `PhysActivity`         | Indicator variable capturing if someone has performed physical activity *outside of their job* within the last 30 days or not.   |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `GenHlth`              | A 5-level categorical variable self-assessing general health from good to bad: 1=Excellent, 2=Very Good, 3=Good, 4=Fair, 5=Poor. |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `PhysHlth`             | The number of days (within the last 30) of any physical injury or illness.                                                       |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `DiffWalk`             | An indicator variable recording any difficulty walking or or climbing up stairs.                                                 |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `Sex`                  | Indicator variable where 0=Female, 1=Male.                                                                                       |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `Age`                  | A 13-level category with ranges of ages. Here,                                                                                   |
+|                        |                                                                                                                                  |
+|                        | 1= ages 18 to 24\                                                                                                                |
+|                        | 2= ages 25 to 29\                                                                                                                |
+|                        | 3= ages 30 to 34\                                                                                                                |
+|                        | 4= ages 35 to 39\                                                                                                                |
+|                        | \                                                                                                                                |
+|                        | and so on in 5 year increments until\                                                                                            |
+|                        | \                                                                                                                                |
+|                        | 12= ages 75 to 79\                                                                                                               |
+|                        | 13= age is older than 80\                                                                                                        |
+|                        | 14= Don't know, missing, or refused to answer.                                                                                   |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+
+: These variables specifically will be examined to evaluate some aspects of physical health (BMI, cholesterol, general well-being, ability for movement, etc) against the individual's status of diabetes, pre-diabetes, or none.
+
+```{r}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv") |>
+  select(Diabetes_binary, HighChol, BMI, HeartDiseaseorAttack, PhysActivity,
+         GenHlth, PhysHlth, DiffWalk, Sex, Age) |>
+  mutate(Diabetes_binary = factor(Diabetes_binary, levels=c(0,1), labels=c("Not diabetic", "Diabetic or Pre-diabetic")),
+         HighChol = factor(HighChol, levels=c(0,1), labels=c("Not high Cholesterol", "High Cholesterol")),
+         HeartDiseaseorAttack = factor(HeartDiseaseorAttack, levels=c(0,1), labels=c("No prior CHD or MI", "CHD or MI in history")),
+         PhysActivity = factor(PhysActivity, levels=c(0,1), labels=c("No physical activity", "Some physical activity")),
+         GenHlth = factor(GenHlth, levels=c(1,2,3,4,5), labels=c("Excellent", "Very Good", "Good", "Fair", "Poor")),
+         DiffWalk = factor(DiffWalk, levels=c(0,1), labels=c("No difficulties walking", "Some difficulties walking")),
+         Sex = factor(Sex, levels=c(0,1), labels=c("Female", "Male")),
+         Age = factor(Age, levels=1:14, labels=c("Age 18 to 24", "Age 25 to 29", "Age 30 to 34", "Age 35 to 39", "Age 40 to 44", "Age 45 to 49", "Age 50 to 54", "Age 55 to 59", "Age 60 to 64", "Age 65 to 69", "Age 70 to 74", "Age 75 to 79", "Age 80 or higher", "Age not given"))
+  )
+```
+
+Now that a subset of the original data set has been generated creating only the variables to be analyzed, some summary statistics will be generated for this. The first item to meaningfully evaluate will be whether there are any missing values for any of these variables.
+
+
+
+
+```{r}
+#| echo: false
+# This line needed per assignment.
+```
+
+[Click here for the Modeling page.](Modeling.html)
