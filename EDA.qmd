@@ -76,13 +76,50 @@ df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv") |>
 
 Now that a subset of the original data set has been generated creating only the variables to be analyzed, some summary statistics will be generated for this. The first item to meaningfully evaluate will be whether there are any missing values for any of these variables.
 
-* NEXT STEPS:
+```{r}
+# Confirm the structure of the cleaned data frame
+str(df)
 
-> A table with sums of blank variables
+# Evaluate any missing values across the columns
+df |>
+  summarize(across(everything(), ~ sum(is.na(.x))))
+```
+This affirms that there are no missing values in our data set. The first interesting item will be to evaluate statistics of the numerical variables:
 
-> A table with means, medians, SDs
+```{r}
+# Straight statistics of numerical variables
+df |>
+  summarize(across(is.numeric, list(Mean=mean, Median=median, SD=sd), .names="{.col}_{.fn}")) |>
+  pivot_longer(cols=everything(), names_to="Variable", values_to="Value") |>
+  mutate(Variables = word(Variable, 1, sep="_"), Statistic=word(Variable, 2, sep="_")) |>
+  pivot_wider(id_cols=Variables, names_from=Statistic, values_from=Value)
 
-> Another table with the same, but grouped by Diabetic_binary status
+# Now split out based on the Diabetes status
+df |>
+  group_by(Diabetes_binary) |>
+  summarize(across(is.numeric, list(Mean=mean, Median=median, SD=sd), .names="{.col}_{.fn}")) |>
+  pivot_longer(cols=BMI_Mean:PhysHlth_SD, names_to="Variable", values_to="Value") |>
+  mutate(Variables = word(Variable, 1, sep="_"), Statistic=word(Variable, 2, sep="_")) |>
+  pivot_wider(id_cols=c(Variables, Diabetes_binary), names_from=Statistic, values_from=Value) |>
+  arrange(Variables)
+
+# Show plots of these variables, to evaluate skewness
+ggplot(df, aes(x=BMI, fill=Diabetes_binary, after_stat(density))) +
+  geom_histogram(bins=45) +
+  labs(title="Frequency of BMI by Diabetic Status",
+       x="BMI",
+       y="Density",
+       fill="Diabetes Status")
+
+ggplot(df, aes(x=PhysHlth, fill=Diabetes_binary, after_stat(density))) +
+  geom_histogram(bins=45) +
+  labs(title="Frequency of BMI by Diabetic Status",
+       x="Number of days (of last 30) with injury or illness",
+       y="Density",
+       fill="Diabetes Status")  
+```
+
+Visual demonstration of the `BMI` variable indicates slight left-skew, with longer right-tails in diabetic/pre-diabetic participants. Otherwise there is not an obvious 'tell' from this graph. The Graph of the `PhysHlth` variable indicates fairly similar distribution of responses, but there are more reported cases of illness or injury for all 30 days for those with diabetes, than those without.
 
 
 ```{r}

@@ -4,15 +4,144 @@ author: "Jarrett Glass"
 format: html
 ---
 
-# Modeling File
+# Modeling
 
-Start with a basic introduction (feel free to repeat some things from the other file). Then, split the data into a training (70% of the data) and test set (30% of the data). Set a seed to make things reproducible.
+This exploratory analysis will be performed on the `Diabetes Health Indicators` Data set, available from kaggle.com. ([Click here for more information](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/?select=diabetes_binary_health_indicators_BRFSS2015.csv)) This is a data set of survey responses to a questionnaire distributed by the CDC. Including the response variable `Diabetes_binary`, there are 21 additional predictor variables recorded; however, this analysis will review the following variables:
 
-The goal is to create models for predicting the Diabetes_binary variable (using tidymodels). We’ll use log-loss as our metric to evaluate the models. For both model types, use log-loss with 5 fold cross-validation to select the best model from that family of models. You should set up your own grid of tuning parameters for each model (even if it is just the number of levels to look at). 
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Variable               | Description of Variable                                                                                                          |
++========================+==================================================================================================================================+
+| `Diabetes_binary`      | Whether or not the individual does not have diabetes (0), has pre-diabetes or diabetes (1).                                      |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `HighChol`             | Indicator variable for high cholesterol.                                                                                         |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `BMI`                  | Recorded Body Mass Indices for individuals.                                                                                      |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `HeartDiseaseorAttack` | Indicator variable for whether or not someone has had coronary heart disease (CHD) or myocardial infarction (MI).                |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `PhysActivity`         | Indicator variable capturing if someone has performed physical activity *outside of their job* within the last 30 days or not.   |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `GenHlth`              | A 5-level categorical variable self-assessing general health from good to bad: 1=Excellent, 2=Very Good, 3=Good, 4=Fair, 5=Poor. |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `PhysHlth`             | The number of days (within the last 30) of any physical injury or illness.                                                       |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `DiffWalk`             | An indicator variable recording any difficulty walking or or climbing up stairs.                                                 |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `Sex`                  | Indicator variable where 0=Female, 1=Male.                                                                                       |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `Age`                  | A 13-level category with ranges of ages. Here,                                                                                   |
+|                        |                                                                                                                                  |
+|                        | 1= ages 18 to 24\                                                                                                                |
+|                        | 2= ages 25 to 29\                                                                                                                |
+|                        | 3= ages 30 to 34\                                                                                                                |
+|                        | 4= ages 35 to 39\                                                                                                                |
+|                        | \                                                                                                                                |
+|                        | and so on in 5 year increments until\                                                                                            |
+|                        | \                                                                                                                                |
+|                        | 12= ages 75 to 79\                                                                                                               |
+|                        | 13= age is older than 80\                                                                                                        |
+|                        | 14= Don't know, missing, or refused to answer.                                                                                   |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+
+```{r}
+#| echo: false
+df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv") |>
+  select(Diabetes_binary, HighChol, BMI, HeartDiseaseorAttack, PhysActivity,
+         GenHlth, PhysHlth, DiffWalk, Sex, Age) |>
+  mutate(Diabetes_binary = factor(Diabetes_binary, levels=c(0,1),
+                                  labels=c("Not diabetic", "Diabetic or Pre-diabetic")),
+         HighChol = factor(HighChol, levels=c(0,1),
+                           labels=c("Not high Cholesterol", "High Cholesterol")),
+         HeartDiseaseorAttack = factor(HeartDiseaseorAttack, levels=c(0,1),
+                                       labels=c("No prior CHD or MI", "CHD or MI in history")),
+         PhysActivity = factor(PhysActivity, levels=c(0,1),
+                               labels=c("No physical activity", "Some physical activity")),
+         GenHlth = factor(GenHlth, levels=c(1,2,3,4,5),
+                          labels=c("Excellent", "Very Good", "Good", "Fair", "Poor")),
+         DiffWalk = factor(DiffWalk, levels=c(0,1),
+                           labels=c("No difficulties walking", "Some difficulties walking")),
+         Sex = factor(Sex, levels=c(0,1),
+                      labels=c("Female", "Male")),
+         Age = factor(Age, levels=1:14,
+                      labels=c("Age 18 to 24", "Age 25 to 29", "Age 30 to 34", "Age 35 to 39", 
+                               "Age 40 to 44", "Age 45 to 49", "Age 50 to 54", "Age 55 to 59", 
+                               "Age 60 to 64", "Age 65 to 69", "Age 70 to 74", "Age 75 to 79", 
+                               "Age 80 or higher", "Age not given")))
+```
+
+In order to perform modeling on this data set, this will be split into a 70/30 training and a test data sets, stratified on the `Diabetic_binary` indicator variable. 
+
+```{r}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(tidymodels)
+set.seed(2358)
+
+# The data set has been re-read in, under the name `df`
+# Data will be split 70/30 to training and test sets.
+split <- initial_split(data=df, prop=0.7, strata=Diabetes_binary)
+train <- training(split)
+test <- testing(split)
+```
+
+The models will be evaluated using log-loss with 5-fold cross-validation. The model will be selected on the basis of lowest log-loss.
+
+```{r}
+train_5fold <- vfold_cv(train, v=5, strata=Diabetes_binary)
+```
 
 ### Classification Tree
 
-You should provide a thorough explanation of what a classification tree model is. Then you should fit a classification tree with varying values for the complexity parameter and choose the best model (based on 5 fold CV on the training set). Include at least 5 predictors in this model.
+A classification tree is a means of modeling a **classification task**, to predict which category (class) a predicted value should be sorted into. The data set is split iteratively, beginning with the **Root node** (entire data set), with rules at each level (decision nodes) to maximize homogeneity of the child nodes.
+
+```{r}
+# Generate a grid for tuning
+treeGrid <- grid_regular(cost_complexity(), tree_depth(), min_n(), levels = 5)
+
+# Establish the Classification Tree engine
+treeEngine <- decision_tree(
+  cost_complexity=tune(),
+  tree_depth=tune(),
+  min_n=tune()
+) |>
+  set_engine("rpart") |>
+  set_mode("classification")
+
+# Generate the Workflow object
+treeWkfl <- workflow() |>
+  add_model(treeEngine) |>
+  add_formula(Diabetes_binary ~ .)
+
+# Now tuning the model
+treeTuned <- treeWkfl |>
+  tune_grid(resamples=train_5fold,
+            grid=treeGrid,
+            metrics=metric_set(mn_log_loss))
+
+# The best result
+treeTuned |> show_best(metric="mn_log_loss", n=1)
+
+# And the Workflow with the best parameters:
+treeBest <- treeWkfl |>
+  finalize_workflow(treeTuned |> select_best(metric="mn_log_loss"))
+
+# Finally, evaluate this optimized model on the entire Training set, and apply to predictions to the Test set.
+treeFinal <- treeBest |>
+  fit(data=train) |>
+  extract_fit_engine()
+
+# The plot for the classification tree
+library(rpart.plot)
+rpart.plot(treeFinal, roundint=FALSE, type=1, extra=1, tweak=1.2, main="Optimized Classification Tree")
+
+# Additionally collect the metrics from the model run on the Test set
+treeBest |> 
+  last_fit(split, metrics=metric_set(mn_log_loss)) |>
+  collect_metrics()
+```
+
 
 ### Random Forest
 
