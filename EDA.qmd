@@ -4,48 +4,74 @@ author: "Jarrett Glass"
 format: html
 ---
 
-## Final Project
+## Introduction
 
-This will be an exploratory data analysis of the file.
+This exploratory analysis will be performed on the `Diabetes Health Indicators` Data set, available from kaggle.com. ([Click here for more information](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/?select=diabetes_binary_health_indicators_BRFSS2015.csv)) This is a data set of survey responses to a questionnaire distributed by the CDC. Including the response variable `Diabetes_binary`, there are 21 additional predictor variables recorded; however, this analysis will review the following variables:
 
-Note that the file to be used, `diabetes_binary_health_indicators_BRFSS2015.csv`, is in the same directory as this. So we will need to read this in, clean it up, etc. We'll be using `Diabetes_binary` as the response variable.
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| Variable               | Description of Variable                                                                                                          |
++========================+==================================================================================================================================+
+| `Diabetes_binary`      | Whether or not the individual does not have diabetes (0), has pre-diabetes or diabetes (1).                                      |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `HighChol`             | Indicator variable for high cholesterol.                                                                                         |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `BMI`                  | Recorded Body Mass Indices for individuals.                                                                                      |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `HeartDiseaseorAttack` | Indicator variable for whether or not someone has had coronary heart disease (CHD) or myocardial infarction (MI).                |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `PhysActivity`         | Indicator variable capturing if someone has performed physical activity *outside of their job* within the last 30 days or not.   |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `GenHlth`              | A 5-level categorical variable self-assessing general health from good to bad: 1=Excellent, 2=Very Good, 3=Good, 4=Fair, 5=Poor. |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `PhysHlth`             | The number of days (within the last 30) of any physical injury or illness.                                                       |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `DiffWalk`             | An indicator variable recording any difficulty walking or or climbing up stairs.                                                 |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `Sex`                  | Indicator variable where 0=Female, 1=Male.                                                                                       |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+| `Age`                  | A 13-level category with ranges of ages. Here,                                                                                   |
+|                        |                                                                                                                                  |
+|                        | 1= ages 18 to 24\                                                                                                                |
+|                        | 2= ages 25 to 29\                                                                                                                |
+|                        | 3= ages 30 to 34\                                                                                                                |
+|                        | 4= ages 35 to 39\                                                                                                                |
+|                        | \                                                                                                                                |
+|                        | and so on in 5 year increments until\                                                                                            |
+|                        | \                                                                                                                                |
+|                        | 12= ages 75 to 79\                                                                                                               |
+|                        | 13= age is older than 80\                                                                                                        |
+|                        | 14= Don't know, missing, or refused to answer.                                                                                   |
++------------------------+----------------------------------------------------------------------------------------------------------------------------------+
 
-In all, there will be six outputs:
+: These variables specifically will be examined to evaluate some aspects of physical health (BMI, cholesterol, general well-being, ability for movement, etc) against the individual's status of diabetes, pre-diabetes, or none.
 
-1. This EDA.qmd file where I perform some data analysis.
+```{r}
+#| warning: false
+#| message: false
 
-2. The Modeling.qmd file where I go through the process of fitting and selecting a ‘best’ model based on a training/test split using the tidymodels framework (to be rendered as a nice page via github pages)
+library(tidyverse)
+df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv") |>
+  select(Diabetes_binary, HighChol, BMI, HeartDiseaseorAttack, PhysActivity,
+         GenHlth, PhysHlth, DiffWalk, Sex, Age) |>
+  mutate(Diabetes_binary = factor(Diabetes_binary, levels=c(0,1), labels=c("Not diabetic", "Diabetic or Pre-diabetic")),
+         HighChol = factor(HighChol, levels=c(0,1), labels=c("Not high Cholesterol", "High Cholesterol")),
+         HeartDiseaseorAttack = factor(HeartDiseaseorAttack, levels=c(0,1), labels=c("No prior CHD or MI", "CHD or MI in history")),
+         PhysActivity = factor(PhysActivity, levels=c(0,1), labels=c("No physical activity", "Some physical activity")),
+         GenHlth = factor(GenHlth, levels=c(1,2,3,4,5), labels=c("Excellent", "Very Good", "Good", "Fair", "Poor")),
+         DiffWalk = factor(DiffWalk, levels=c(0,1), labels=c("No difficulties walking", "Some difficulties walking")),
+         Sex = factor(Sex, levels=c(0,1), labels=c("Female", "Male")),
+         Age = factor(Age, levels=1:14, labels=c("Age 18 to 24", "Age 25 to 29", "Age 30 to 34", "Age 35 to 39", "Age 40 to 44", "Age 45 to 49", "Age 50 to 54", "Age 55 to 59", "Age 60 to 64", "Age 65 to 69", "Age 70 to 74", "Age 75 to 79", "Age 80 or higher", "Age not given"))
+  )
+```
 
-3. A .R file where you fit your ‘best’ model as chosen in your modeling file. This file should also define an API for obtaining predictions from that model (among other things, see below).
+Now that a subset of the original data set has been generated creating only the variables to be analyzed, some summary statistics will be generated for this. The first item to meaningfully evaluate will be whether there are any missing values for any of these variables.
 
-4. A `Dockerfile` to be used to build the Docker image.
 
-5. A saved `.tar` file that corresponds to the Docker image.
 
-6. A short video of me demonstrating the Docker container and how the API works.
-
-# EDA File
-
-You’ll want to create a quarto document where you go through an exploratory data analysis of our data set.
-
-### Introduction section
-
-You should have an introduction section that
-
-+ Briefly describes the data and the variables you have to work with (just discuss the ones you’ll investigate/use in your analysis).
-
-+ Describes the purpose of your EDA and ultimate goal of modeling.
-
-### Data
-
-Use a relative path to import the data. You likely want to convert a lot of the variables to factors with meaningful level names, check on missingness, etc.
-
-### Summarizations
-
-You should then produce meaningful summary statistics and plots about the data you are working with (especially as it relates to your response). Although a best practice would be to split the data at hand into a training and testing set first, go ahead and do your EDA on the full data. Be sure to have a narrative about what you are exploring and what the summaries and graphs you created say about the relationships in your data.
 
 ```{r}
 #| echo: false
 # This line needed per assignment.
 ```
+
 [Click here for the Modeling page.](Modeling.html)
