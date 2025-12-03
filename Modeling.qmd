@@ -145,7 +145,7 @@ treeBest |>
 
 ### Random Forest
 
-You should provide a thorough explanation of what a random forest is and why we might use it (be sure to relate this to a basic classification tree). You should then fit a random forest model with varying values for the `mtry` parameter and choose the best model (based on 5 fold CV on the training set). Include at least 5 predictors in this model.
+A Random Forest model is a non-parametric learning method that can be used for classification modeling. It works by building a large number of individual, high-variance decision trees on bootstrap samples of the training data. The bootstrap samples are made by taking samples (with replacement) of the training data. At each node split during the construction of these trees, a random subset of predictors is considered. This combination of bagging (sampling data) and feature randomness (sampling features) ensures that the resulting trees are highly uncorrelated. For a categorical prediction task (classification), the final output is determined by majority voting, where the category chosen by the most individual trees becomes the forest's final prediction, effectively reducing the model's overall variance and leading to high accuracy and robustness against overfitting.
 
 ### Final Model Selection
 
