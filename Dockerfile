@@ -26,3 +26,4 @@ ENTRYPOINT ["R", "-e", "pr <- plumber::plumb('api.R'); pr$run(host='0.0.0.0', po
 # To run this now:
 # docker build -t st558-api .
 # docker run -p 8000:8000 st558-api
+# docker save -o st558_api_image.tar st558-api
