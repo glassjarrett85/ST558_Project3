@@ -4,6 +4,15 @@ author: "Jarrett Glass"
 format: html
 ---
 
+```{r}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(tidymodels)
+set.seed(2358)
+```
+
 # Modeling
 
 This exploratory analysis will be performed on the `Diabetes Health Indicators` Data set, available from kaggle.com. ([Click here for more information](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset/?select=diabetes_binary_health_indicators_BRFSS2015.csv)) This is a data set of survey responses to a questionnaire distributed by the CDC. Including the response variable `Diabetes_binary`, there are 21 additional predictor variables recorded; however, this analysis will review the following variables:
@@ -45,7 +54,7 @@ This exploratory analysis will be performed on the `Diabetes Health Indicators` 
 
 ```{r}
 #| echo: false
-df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv") |>
+df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv", show_col_types = FALSE) |>
   select(Diabetes_binary, HighChol, BMI, HeartDiseaseorAttack, PhysActivity,
          GenHlth, PhysHlth, DiffWalk, Sex, Age) |>
   mutate(Diabetes_binary = factor(Diabetes_binary, levels=c(0,1),
@@ -72,13 +81,6 @@ df <- readr::read_csv("diabetes_binary_health_indicators_BRFSS2015.csv") |>
 In order to perform modeling on this data set, this will be split into a 70/30 training and a test data sets, stratified on the `Diabetic_binary` indicator variable. 
 
 ```{r}
-#| warning: false
-#| message: false
-
-library(tidyverse)
-library(tidymodels)
-set.seed(2358)
-
 # The data set has been re-read in, under the name `df`
 # Data will be split 70/30 to training and test sets.
 split <- initial_split(data=df, prop=0.7, strata=Diabetes_binary)
@@ -137,17 +139,75 @@ library(rpart.plot)
 rpart.plot(treeFinal, roundint=FALSE, type=1, extra=1, tweak=1.2, main="Optimized Classification Tree")
 
 # Additionally collect the metrics from the model run on the Test set
-treeBest |> 
+treeMets <- treeBest |> 
   last_fit(split, metrics=metric_set(mn_log_loss)) |>
   collect_metrics()
+treeMets
 ```
-
 
 ### Random Forest
 
 A Random Forest model is a non-parametric learning method that can be used for classification modeling. It works by building a large number of individual, high-variance decision trees on bootstrap samples of the training data. The bootstrap samples are made by taking samples (with replacement) of the training data. At each node split during the construction of these trees, a random subset of predictors is considered. This combination of bagging (sampling data) and feature randomness (sampling features) ensures that the resulting trees are highly uncorrelated. For a categorical prediction task (classification), the final output is determined by majority voting, where the category chosen by the most individual trees becomes the forest's final prediction, effectively reducing the model's overall variance and leading to high accuracy and robustness against overfitting.
 
+```{r}
+# Utilize the same `split`, `train`, `test`, and `train_5fold` variables as above.
+library(ranger)
+
+rfEngine <- rand_forest(
+  mtry=tune(),
+  min_n=tune(),
+  trees=100 
+) |>
+  set_engine("ranger", importance="impurity") |>
+  set_mode("classification")
+
+# Generate the workflow based on the RF engine specified above
+rfWkfl <- workflow() |>
+  add_model(rfEngine) |>
+  add_formula(Diabetes_binary ~ .)
+
+# Perform tuning. The seed was already set above.
+rfTuned <- rfWkfl |>
+  tune_grid(resamples=train_5fold,
+            metrics=metric_set(mn_log_loss),
+            control=control_grid(save_pred=TRUE)
+  )
+
+# The top performing models based on log-loss
+rfTuned |> show_best(metric="mn_log_loss", n=5)
+
+# And the Workflow with the best parameters:
+rfBest <- rfWkfl |>
+  finalize_workflow(rfTuned |> select_best(metric="mn_log_loss"))
+
+# Finally, evaluate this optimized model on the entire Training set, and apply to predictions to the Test set.
+rfFinal <- rfBest |>
+  fit(data=train) |>
+  extract_fit_engine()
+
+# Demonstration of the change in mn_log_loss across different tuning parameters
+rfTuned |>
+  autoplot() +
+  geom_smooth(se=FALSE) +
+  labs(title="Log Loss across Random Forest Tuning",
+       subtitle="Across 5-Fold Cross Validation",
+       y="Mean Negative Log Loss (mn_log_loss)")
+
+# Collect the metrics from the model run on the Test set
+rfMets <- rfBest |> 
+  last_fit(split, metrics=metric_set(mn_log_loss)) |>
+  collect_metrics()
+rfMets
+```
+
 ### Final Model Selection
 
-You should now have two best models (one for each model type above). Compare both models on the test set and declare an overall winner!
+Now that the two models have been completed, the `mn_log_loss` variable can be compare to show which model is a better fit for predicting the data.
+
+```{r}
+data.frame(Model=c("Classification Tree", "Random Forest"),
+           mn_log_loss=c(treeMets$.estimate, rfMets$.estimate))
+```
+
+For this data set, the Random Forest model is a better fit for the data. 
 
