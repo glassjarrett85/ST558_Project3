@@ -44,14 +44,10 @@ function() {
 #* @get /pred
 function(..., res, req) {
   args <- list(...)
-  print("The names(args) variable")
-  print(names(args))
-  
+
   # Check if the arguments came through as a single string needing to be parsed.
   if (length(names(args)) == 1 && names(args) == "...") {
     pairs <- unlist(strsplit(args$..., "&"))
-    print("It came through as a string")
-    print(pairs)
     parsed <- lapply(pairs, function(x) {
       parts <- unlist(strsplit(x, "="))
       if (length(parts) == 2) setNames(list(parts[2]), parts[1])
@@ -63,8 +59,7 @@ function(..., res, req) {
   
   # Just make sure to remove the names "res", "req", or "session" from the list of args.
   args <- args[!(names(args) %in% c("res", "req", "session"))]
-  print("The final args variable:")
-  print(args)
+
   # Confirm there is at least one variable provided.
   if (length(args) == 0) {
     res$status <- 400 # Bad request
@@ -131,3 +126,9 @@ function() {
       labs(title="Confusion Matrix of Random Forest Model")
   )
 }
+
+# Three easy function calls to the /pred:
+
+# /pred?PhysActivity=Some&DiffWalk=Yes&HeartDiseaseorAttack=Yes&HighChol=Yes&BMI=32
+# /pred?HighChol=No&DiffWalk=No&GenHlth=Poor
+# /pred?Age=75-79&GenHlth=Good&HighChol=Yes
