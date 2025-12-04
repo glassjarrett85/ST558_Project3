@@ -27,7 +27,7 @@ library(plumber)
 #* @apiDescription An API that provides predictions and other details from a predictive model based on the CDC's Diabetes questionnaire from 2015.
 
 
-# An info endpoint. This endpoint shouldn’t have any inputs. The output should be a message with: Your name, A URL for your rendered github pages site
+#* Provides the author's name and the URL to the processed Github pages.
 #* @get /info
 function() {
   return(list(
@@ -38,29 +38,67 @@ function() {
 }
 
 
-#* A prediction endpoint. This endpoint should take in any predictors used in your ‘best’ model.
-#* @param ... The variable(s) to be predicted against, and its predicted values.
+#* A prediction endpoint. This endpoint should take in any predictors used in your ‘best’ model. Multiple variables can be entered if separated by ampersand (&).
+#* @param ... The variable(s) to be predicted against, and its predicted values. Multiple variables can be entered if separated by ampersands (&).
+#* @serializer json
 #* @get /pred
-
-cog <- function(...) {
-  # Combine the provided arguments into a list.
+function(..., res, req) {
   args <- list(...)
+  print("The names(args) variable")
+  print(names(args))
+  
+  # Check if the arguments came through as a single string needing to be parsed.
+  if (length(names(args)) == 1 && names(args) == "...") {
+    pairs <- unlist(strsplit(args$..., "&"))
+    print("It came through as a string")
+    print(pairs)
+    parsed <- lapply(pairs, function(x) {
+      parts <- unlist(strsplit(x, "="))
+      if (length(parts) == 2) setNames(list(parts[2]), parts[1])
+      else NULL
+    })
+    args <- unlist(parsed, recursive=FALSE)
+  }
+  else { }
+  
+  # Just make sure to remove the names "res", "req", or "session" from the list of args.
+  args <- args[!(names(args) %in% c("res", "req", "session"))]
+  print("The final args variable:")
+  print(args)
   # Confirm there is at least one variable provided.
-  if (length(args) == 0) { return(list(error = "No predictor variables provided. At least one is required.")) }
+  if (length(args) == 0) {
+    res$status <- 400 # Bad request
+    return(list(error = "No predictor variables provided. At least one is required."))
+  }
   
   # Check if any of the proffered variables are not within allowable list of variables (`defaults`)
   invalids <- names(args)[!(names(args) %in% names(defaults))]
-  if (length(invalids)) { return(list(error = paste("Invalid predictors provided:", invalids))) }
+  if (length(invalids)) { 
+    res$status <- 400 # Bad request
+    return(list(
+      error = "Invalid predictors provided:",
+      bad_predictors = invalids
+    ))
+  }
   
   # Check the type of predictor, and convert to factor if needed.
   args <- args |>
     imap(~ {
       if (.y %in% names(factors)) factor(.x, levels = factors[[.y]])
-      else .x
+      else as.numeric(.x)
     })
   
   # Create prediction data frame, replacing default values with user-specific ones.
   preds <- as.data.frame(c(args, defaults[!(names(defaults) %in% names(args))]))
+  
+  # Confirm that no inappropriate factor levels are provided.
+  if (preds |> select(where(is.factor)) |> is.na() |> any()) {
+    res$status <- 400 # Bad request
+    return(list(
+      error = "Inappropriate predictor level provided. For factor variables, only the following responses are allowable:",
+      responses=factors
+    ))
+  }
   
   # Make the prediction from RF model
   prediction <- predict(final_fit, preds)
