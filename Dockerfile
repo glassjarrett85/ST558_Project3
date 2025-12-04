@@ -7,10 +7,10 @@ FROM rstudio/plumber
 RUN apt-get update -qq && apt-get install -y libssl-dev libcurl4-gnutls-dev libpng-dev libpng-dev pandoc
 
 # Install needed libraries in R.
-RUN R -e "install.packages(c('GGally', 'leaflet'))"
+RUN R -e "install.packages(c('tidyverse', 'tidymodels', 'ranger','rpart.plot'))"
 
-# Copy my API file to the image.
-COPY api.R api.R
+# Copy my API, Helper, and variable files to the image.
+COPY api.R helper.R rfBest.rds split.rds .
 
 # Open the communication port.
 EXPOSE 8000

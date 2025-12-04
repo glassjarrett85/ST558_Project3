@@ -1,65 +1,95 @@
-# This is the API file.
+# API File for ST558 Project 3
 
-# You’ll create a file that defines an API (via the plumber package). At the top of the file, read in your data and fit your ‘best’ model to the entire data set.
-# 
-# Then you should create three API endpoints:
-#   
-# + A pred endpoint. This endpoint should take in any predictors used in your ‘best’ model. You should have default values for each that is the mean of that variable’s values (if numeric) or the most prevalent class (if categorical). Below this API put three example function calls to the API in comments so that I can easily copy and paste to check that it works!
-#   
-# + An info endpoint. This endpoint shouldn’t have any inputs. The output should be a message with:
-#   – Your name
-#   – A URL for your rendered github pages site
-# 
-# + A confusion endpoint. This endpoint should produce a plot of the confusion matrix for your model fit. That is, comparing the predictions from the model to the actual values from the data set (again you fit the model on the entire data set for this part).
+# Data set established in the helper.R file
+source("helper.R")
 
+# Import these variables saved from Modeling.qmd 
+split <- readRDS("split.rds")
+rfBest <- readRDS("rfBest.rds")
 
-# Begin with copying over the script from the example we worked on. This will be baseline to begin working.
+# Generate the model using optimum conditions established in the `Modeling` page.
+# In this case the tuned hyperparameters are mtry=2, min_n=2.
+engine <- rand_forest(mtry=2, min_n=2, trees=100) |>
+  set_engine("ranger", importance="impurity") |>
+  set_mode("classification")
+
+# Establish workflow
+wkfl <- workflow() |>
+  add_model(engine) |>
+  add_formula(Diabetes_binary ~ .)
+
+# There is no need to tune; so generate the model directly on `df`
+final_fit <- wkfl |> fit(data=df)
 
 library(plumber)
 
-#* @apiTitle Plumber Example API
-#* @apiDescription Plumber example description.
+#* @apiTitle Binary Diabetes Model API
+#* @apiDescription An API that provides predictions and other details from a predictive model based on the CDC's Diabetes questionnaire from 2015.
 
-#* Echo back the input
-#* @param msg The message to echo
-#* @get /echo
-function(msg = "") {
-  list(msg = paste0("The message is: '", msg, "'"))
-}
 
-#* Plot a histogram
-#* @serializer png
-#* @get /plot
+# An info endpoint. This endpoint shouldn’t have any inputs. The output should be a message with: Your name, A URL for your rendered github pages site
+#* @get /info
 function() {
-  rand <- rnorm(100)
-  hist(rand)
+  return(list(
+    status="success",
+    name="Jarrett Glass",
+    github_url="https://glassjarrett85.github.io/ST558_Project3/"
+  ))
 }
 
-#* Return the sum of two numbers
-#* @param a The first number to add
-#* @param b The second number to add
-#* @post /sum
-function(a, b) {
-  as.numeric(a) + as.numeric(b)
+
+#* A prediction endpoint. This endpoint should take in any predictors used in your ‘best’ model.
+#* @param ... The variable(s) to be predicted against, and its predicted values.
+#* @get /pred
+
+cog <- function(...) {
+  # Combine the provided arguments into a list.
+  args <- list(...)
+  # Confirm there is at least one variable provided.
+  if (length(args) == 0) { return(list(error = "No predictor variables provided. At least one is required.")) }
+  
+  # Check if any of the proffered variables are not within allowable list of variables (`defaults`)
+  invalids <- names(args)[!(names(args) %in% names(defaults))]
+  if (length(invalids)) { return(list(error = paste("Invalid predictors provided:", invalids))) }
+  
+  # Check the type of predictor, and convert to factor if needed.
+  args <- args |>
+    imap(~ {
+      if (.y %in% names(factors)) factor(.x, levels = factors[[.y]])
+      else .x
+    })
+  
+  # Create prediction data frame, replacing default values with user-specific ones.
+  preds <- as.data.frame(c(args, defaults[!(names(defaults) %in% names(args))]))
+  
+  # Make the prediction from RF model
+  prediction <- predict(final_fit, preds)
+  
+  # Finally return the result
+  return(list(
+    status="success",
+    input_data=args,
+    prediction=prediction$.pred_class[1]
+  ))
 }
 
-# Programmatically alter your API
-#* @plumber
-function(pr) {
-  pr %>%
-    # Overwrite the default serializer to return unboxed JSON
-    pr_set_serializer(serializer_unboxed_json())
-}
 
-library(leaflet)
-#* Plotting widget
-#* @serializer htmlwidget
-#* @param lat latitude
-#* @param lng longtitude
-#* @get /map
-function(lng=174.768, lat=-36.852) {
-  m <- leaflet::leaflet() |>
-    addTiles() |> # Add default OpenStreetMap map tiles
-    addMarkers(as.numeric(lng), as.numeric(lat))
-  m # print the map
+#* Plot the confusion matrix for the model fit. That is, comparing the predictions from the model to the actual values from the data set (again you fit the model on the entire data set for this part).
+#* @serializer png
+#* @get /confusion
+function() {
+  # Using `last_fit` to get the necessary test data and predictions
+  rfPreds <- rfBest |> 
+    last_fit(split) |>
+    collect_predictions()
+  
+  # Generate the confusion matrix using the actual Diabetes_binary variable versus the predicted values from the test set
+  confmat <- rfPreds |>
+    conf_mat(truth = Diabetes_binary, estimate = .pred_class)
+  
+  # Create the plot using a heatmap
+  print(
+    autoplot(confmat, type="heatmap") +
+      labs(title="Confusion Matrix of Random Forest Model")
+  )
 }
